@@ -1,44 +1,52 @@
-import { useState } from 'react';
-import { CONDITION_KEYS, CONDITIONS, type ConditionKey } from './weather/data';
+import { useEffect, useState } from 'react';
+import { CONDITION_KEYS, CONDITIONS } from './weather/data';
+import { LiveWeather } from './weather/LiveWeather';
 import { WeatherScreen } from './weather/WeatherScreen';
 import './App.css';
 
-const PREVIEWS: ConditionKey[] = ['clear', 'rain', 'storm', 'snow', 'night'];
+const useHash = () => {
+  const [hash, setHash] = useState(() => window.location.hash);
+  useEffect(() => {
+    const onChange = () => setHash(window.location.hash);
+    window.addEventListener('hashchange', onChange);
+    return () => window.removeEventListener('hashchange', onChange);
+  }, []);
+  return hash;
+};
 
-export default function App() {
-  const [focused, setFocused] = useState<ConditionKey>('clear');
-
+function Previews() {
   return (
     <main className="app">
+      <a className="app-link" href="#">
+        ← Back to live weather
+      </a>
       <h1 className="app-title">Weather app — motion preview</h1>
+      <p className="app-lede">Every animated sky with sample data. Tap an hour, a day or the sky to try the interactions.</p>
+      <div className="app-gallery">
+        {CONDITION_KEYS.map((k) => (
+          <figure key={k} className="app-frame">
+            <figcaption>
+              {CONDITIONS[k].label} · {CONDITIONS[k].city}
+            </figcaption>
+            <WeatherScreen weather={CONDITIONS[k]} />
+          </figure>
+        ))}
+      </div>
+    </main>
+  );
+}
 
-      <section className="app-section" aria-labelledby="try-it">
-        <h2 id="try-it" className="app-subtitle">Try it</h2>
-        <div className="app-picker" role="group" aria-label="Weather condition">
-          {CONDITION_KEYS.map((k) => (
-            <button key={k} type="button" aria-pressed={focused === k} className={focused === k ? 'is-on' : ''} onClick={() => setFocused(k)}>
-              {CONDITIONS[k].label}
-            </button>
-          ))}
-        </div>
-        <div className="app-phone">
-          <WeatherScreen condition={focused} />
-        </div>
-      </section>
+export default function App() {
+  const hash = useHash();
+  if (hash === '#previews') return <Previews />;
 
-      <section className="app-section" aria-labelledby="all">
-        <h2 id="all" className="app-subtitle">All conditions</h2>
-        <div className="app-gallery">
-          {PREVIEWS.map((k) => (
-            <figure key={k} className="app-frame">
-              <figcaption>
-                {CONDITIONS[k].label} · {CONDITIONS[k].city}
-              </figcaption>
-              <WeatherScreen condition={k} />
-            </figure>
-          ))}
-        </div>
-      </section>
+  return (
+    <main className="app-live">
+      <h1 className="wx-visually-hidden">Weather</h1>
+      <LiveWeather />
+      <a className="app-link app-live-link" href="#previews">
+        See every weather animation
+      </a>
     </main>
   );
 }

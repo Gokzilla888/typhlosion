@@ -1,5 +1,5 @@
-import type { CSSProperties, ReactNode } from 'react';
-import { clamp01, DAY_NAMES, formatTemp, hourLabel, type Condition, type Unit } from './data';
+import { useState, type CSSProperties, type ReactNode } from 'react';
+import { clamp01, DAY_NAMES, formatTemp, hourLabel, ICON_LABELS, type Condition, type Unit } from './data';
 import { UiIcon, WeatherIcon, type UI_ICONS } from './Icon';
 
 interface CardProps {
@@ -32,28 +32,48 @@ interface SectionProps {
   unit: Unit;
 }
 
-export function HourlyCard({ c, unit }: SectionProps) {
+interface HourlyCardProps extends SectionProps {
+  selected: number;
+  onSelect: (index: number) => void;
+}
+
+export function HourlyCard({ c, unit, selected, onSelect }: HourlyCardProps) {
   return (
     <Card bg={c.cardBg} className="wx-rise wx-hourly" style={{ animationDelay: '0.15s' }}>
       <div className="wx-hourly-summary">{c.summary}</div>
-      <div className="wx-hscroll">
-        {c.hours.map((icon, i) => (
-          <div key={i} className={`wx-hour${i === 0 ? ' wx-hour--now' : ''}`}>
-            <div className="wx-hour-time">{i === 0 ? 'Now' : hourLabel(c.startHour + i)}</div>
-            <WeatherIcon name={icon} size={26} />
-            <div className="wx-pop">{c.hourPop[i] ? `${c.hourPop[i]}%` : ''}</div>
-            <div className="wx-hour-temp">{formatTemp(c.temp + c.hourDelta[i], unit)}</div>
-          </div>
-        ))}
+      <div className="wx-hscroll" role="group" aria-label="Hourly forecast. Pick an hour to preview it.">
+        {c.hours.map((icon, i) => {
+          const time = i === 0 ? 'Now' : hourLabel(c.startHour + i);
+          return (
+            <button
+              key={i}
+              type="button"
+              className={`wx-hour${i === selected ? ' wx-hour--on' : ''}`}
+              aria-pressed={i === selected}
+              aria-label={`${time}, ${formatTemp(c.temp + c.hourDelta[i], unit)}${c.hourPop[i] ? `, ${c.hourPop[i]}% chance of precipitation` : ''}`}
+              onClick={() => onSelect(i)}
+              style={{ animationDelay: `${0.25 + Math.min(i, 10) * 0.04}s` }}
+            >
+              <div className="wx-hour-time">{time}</div>
+              <span className="wx-hour-icon">
+                <WeatherIcon name={icon} size={26} />
+              </span>
+              <div className="wx-pop">{c.hourPop[i] ? `${c.hourPop[i]}%` : ''}</div>
+              <div className="wx-hour-temp">{formatTemp(c.temp + c.hourDelta[i], unit)}</div>
+            </button>
+          );
+        })}
       </div>
     </Card>
   );
 }
 
 export function DailyCard({ c, unit }: SectionProps) {
+  const [open, setOpen] = useState<number | null>(null);
   const weekMin = Math.min(...c.days.map((d) => d[1]));
   const weekMax = Math.max(...c.days.map((d) => d[2]));
   const span = Math.max(1, weekMax - weekMin);
+  const names = c.dayNames ?? DAY_NAMES;
 
   return (
     <Card bg={c.cardBg} className="wx-rise wx-daily" style={{ animationDelay: '0.28s' }}>
@@ -62,17 +82,37 @@ export function DailyCard({ c, unit }: SectionProps) {
         const left = ((lo - weekMin) / span) * 100;
         const width = ((hi - lo) / span) * 100;
         const dot = left + width * clamp01((c.temp - lo) / Math.max(1, hi - lo));
+        const isOpen = open === i;
+        const detail = c.dayDetails?.[i];
+        const panelId = `wx-day-${c.scene}-${i}`;
         return (
-          <div key={i} className="wx-day">
-            <div className="wx-day-name">{DAY_NAMES[i]}</div>
-            <WeatherIcon name={icon} />
-            <div className="wx-pop">{pop ? `${pop}%` : ''}</div>
-            <div className="wx-day-lo">{formatTemp(lo, unit)}</div>
-            <div className="wx-range">
-              <div className="wx-range-fill wx-grow" style={{ left: `${left}%`, width: `${width}%`, animationDelay: `${0.5 + i * 0.07}s` }} />
-              {i === 0 && <div className="wx-dot wx-fade-in" style={{ left: `${dot}%`, animationDelay: '1.2s' }} />}
+          <div key={i} className={`wx-day${isOpen ? ' wx-day--open' : ''}`}>
+            <button type="button" className="wx-day-row" aria-expanded={isOpen} aria-controls={panelId} onClick={() => setOpen(isOpen ? null : i)}>
+              <div className="wx-day-name">{names[i]}</div>
+              <WeatherIcon name={icon} />
+              <div className="wx-pop">{pop ? `${pop}%` : ''}</div>
+              <div className="wx-day-lo">{formatTemp(lo, unit)}</div>
+              <div className="wx-range">
+                <div className="wx-range-fill wx-grow" style={{ left: `${left}%`, width: `${width}%`, animationDelay: `${0.5 + i * 0.07}s` }} />
+                {i === 0 && <div className="wx-dot wx-fade-in" style={{ left: `${dot}%`, animationDelay: '1.2s' }} />}
+              </div>
+              <div className="wx-day-hi">{formatTemp(hi, unit)}</div>
+            </button>
+            <div id={panelId} className="wx-day-panel" role="region" aria-label={`${names[i]} details`} hidden={!isOpen}>
+              <div className="wx-day-panel-inner">
+                <div className="wx-day-desc">
+                  {detail?.desc ?? ICON_LABELS[icon]}. High {formatTemp(hi, unit)}, low {formatTemp(lo, unit)}.
+                </div>
+                <dl className="wx-day-facts">
+                  <div><dt>Chance of rain</dt><dd>{pop}%</dd></div>
+                  {detail?.precipMm != null && <div><dt>Precipitation</dt><dd>{detail.precipMm} mm</dd></div>}
+                  {detail?.windMax != null && <div><dt>Max wind</dt><dd>{detail.windMax} km/h</dd></div>}
+                  {detail?.uvMax != null && <div><dt>Max UV</dt><dd>{detail.uvMax}</dd></div>}
+                  {detail?.sunrise && <div><dt>Sunrise</dt><dd>{detail.sunrise}</dd></div>}
+                  {detail?.sunset && <div><dt>Sunset</dt><dd>{detail.sunset}</dd></div>}
+                </dl>
+              </div>
             </div>
-            <div className="wx-day-hi">{formatTemp(hi, unit)}</div>
           </div>
         );
       })}
@@ -111,7 +151,7 @@ export function DetailTiles({ c, unit }: SectionProps) {
           <div className="wx-compass">
             <div className="wx-compass-n">N</div>
             <div className="wx-compass-needle" style={{ transform: `rotate(${windArrowDeg}deg)` }}>
-              <svg width="59" height="59" viewBox="0 0 64 64" fill="none" stroke="#FFFFFF" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <svg className="wx-needle-sway" style={{ animationDuration: `${Math.max(0.8, 4 - c.gust / 15).toFixed(2)}s` }} width="59" height="59" viewBox="0 0 64 64" fill="none" stroke="#FFFFFF" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <path d="M32 48V18M26 25l6-8 6 8" />
               </svg>
             </div>

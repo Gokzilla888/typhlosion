@@ -7,7 +7,18 @@ export type Unit = 'C' | 'F';
 /** [icon, low, high, chance of precipitation %] */
 export type DayForecast = [IconName, number, number, number];
 
+export interface DayDetail {
+  desc: string;
+  sunrise?: string;
+  sunset?: string;
+  windMax?: number;
+  uvMax?: number;
+  precipMm?: number;
+}
+
 export interface Condition {
+  /** Which animated sky to show. */
+  scene: ConditionKey;
   label: string;
   city: string;
   temp: number;
@@ -41,6 +52,16 @@ export interface Condition {
   hourDelta: number[];
   hourPop: number[];
   days: DayForecast[];
+  /** Labels for `days`; defaults to DAY_NAMES. */
+  dayNames?: string[];
+  /** Whether each hourly slot is in daylight. */
+  hourIsDay?: boolean[];
+  /** Extra details shown when a day in the 7-day list is expanded. */
+  dayDetails?: DayDetail[];
+  /** Rain or snow strength from 0 to 1; scales the number of particles. */
+  intensity?: number;
+  /** Short note for the footer, e.g. when the data was updated. */
+  updatedNote?: string;
   sky: [string, string, string];
   cardBg: string;
   cloudColor: string;
@@ -76,10 +97,29 @@ export const ICON_COLORS: Record<IconName, string> = {
   snow: '#FFFFFF',
 };
 
+export const ICON_LABELS: Record<IconName, string> = {
+  sun: 'Sunny',
+  moon: 'Clear',
+  cloud: 'Cloudy',
+  partly: 'Partly cloudy',
+  rain: 'Rain',
+  storm: 'Thunderstorm',
+  snow: 'Snow',
+};
+
+/** Picks the animated sky that fits an hourly icon. */
+export function sceneForIcon(icon: IconName, isDay = icon !== 'moon'): ConditionKey {
+  if (icon === 'rain' || icon === 'storm' || icon === 'snow') return icon;
+  if (!isDay || icon === 'moon') return 'night';
+  if (icon === 'sun' || icon === 'partly') return 'clear';
+  return 'cloudy';
+}
+
 export const CONDITION_KEYS: ConditionKey[] = ['clear', 'cloudy', 'rain', 'storm', 'snow', 'night'];
 
 export const CONDITIONS: Record<ConditionKey, Condition> = {
   clear: {
+    scene: 'clear',
     label: 'Clear day',
     city: 'New Delhi', temp: 31, desc: 'Clear sky', hi: 34, lo: 22, feels: 33,
     feelsNote: 'Strong sun makes it feel a little warmer.',
@@ -97,6 +137,7 @@ export const CONDITIONS: Record<ConditionKey, Condition> = {
     sun: true, moon: false, stars: false, rain: false, snow: false, lightning: false,
   },
   cloudy: {
+    scene: 'cloudy',
     label: 'Cloudy',
     city: 'Pune', temp: 24, desc: 'Mostly cloudy', hi: 27, lo: 19, feels: 24,
     feelsNote: 'Similar to the actual temperature.',
@@ -114,6 +155,7 @@ export const CONDITIONS: Record<ConditionKey, Condition> = {
     sun: false, moon: false, stars: false, rain: false, snow: false, lightning: false,
   },
   rain: {
+    scene: 'rain',
     label: 'Heavy rain',
     city: 'Mumbai', temp: 26, desc: 'Heavy rain', hi: 28, lo: 24, feels: 29,
     feelsNote: 'High humidity makes it feel warmer.',
@@ -131,6 +173,7 @@ export const CONDITIONS: Record<ConditionKey, Condition> = {
     sun: false, moon: false, stars: false, rain: true, snow: false, lightning: false,
   },
   storm: {
+    scene: 'storm',
     label: 'Thunderstorm',
     city: 'Kolkata', temp: 27, desc: 'Thunderstorm', hi: 30, lo: 25, feels: 31,
     feelsNote: 'Muggy air makes it feel warmer.',
@@ -148,6 +191,7 @@ export const CONDITIONS: Record<ConditionKey, Condition> = {
     sun: false, moon: false, stars: false, rain: true, snow: false, lightning: true,
   },
   snow: {
+    scene: 'snow',
     label: 'Light snow',
     city: 'Shimla', temp: -1, desc: 'Light snow', hi: 2, lo: -4, feels: -5,
     feelsNote: 'Wind makes it feel colder.',
@@ -165,6 +209,7 @@ export const CONDITIONS: Record<ConditionKey, Condition> = {
     sun: false, moon: false, stars: false, rain: false, snow: true, lightning: false,
   },
   night: {
+    scene: 'night',
     label: 'Clear night',
     city: 'Bengaluru', temp: 19, desc: 'Clear night', hi: 27, lo: 17, feels: 19,
     feelsNote: 'Similar to the actual temperature.',
