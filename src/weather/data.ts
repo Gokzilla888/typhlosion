@@ -7,6 +7,20 @@ export type Unit = 'C' | 'F';
 /** [icon, low, high, chance of precipitation %] */
 export type DayForecast = [IconName, number, number, number];
 
+export type PollenKind = 'alder' | 'birch' | 'grass' | 'mugwort' | 'olive' | 'ragweed';
+
+export interface AirQuality {
+  /** US AQI, 0–500. */
+  aqi: number;
+  /** Concentrations in µg/m³. */
+  pm25: number;
+  pm10: number;
+  o3: number;
+  no2: number;
+  /** Grains per m³ by plant; null where pollen data isn't available. */
+  pollen: Partial<Record<PollenKind, number>> | null;
+}
+
 export interface DayDetail {
   desc: string;
   sunrise?: string;
@@ -60,6 +74,8 @@ export interface Condition {
   dayDetails?: DayDetail[];
   /** Rain or snow strength from 0 to 1; scales the number of particles. */
   intensity?: number;
+  /** Air quality and pollen; missing when it couldn't be loaded. */
+  air?: AirQuality;
   /** Short note for the footer, e.g. when the data was updated. */
   updatedNote?: string;
   sky: [string, string, string];
@@ -135,6 +151,7 @@ export const CONDITIONS: Record<ConditionKey, Condition> = {
     sky: ['#0B4FB3', '#1F74DB', '#4C9BEB'], cardBg: 'rgba(6,20,48,0.26)',
     cloudColor: 'rgba(255,255,255,0.55)', cloudCount: 2, cloudOpacity: 0.7, dropCount: 0,
     sun: true, moon: false, stars: false, rain: false, snow: false, lightning: false,
+    air: { aqi: 168, pm25: 89, pm10: 176, o3: 62, no2: 48, pollen: { grass: 34, mugwort: 6, birch: 0, alder: 0, olive: 0, ragweed: 12 } },
   },
   cloudy: {
     scene: 'cloudy',
@@ -153,6 +170,7 @@ export const CONDITIONS: Record<ConditionKey, Condition> = {
     sky: ['#3D5878', '#5B7896', '#86A0BA'], cardBg: 'rgba(10,20,40,0.3)',
     cloudColor: 'rgba(235,240,248,0.5)', cloudCount: 6, cloudOpacity: 0.85, dropCount: 0,
     sun: false, moon: false, stars: false, rain: false, snow: false, lightning: false,
+    air: { aqi: 88, pm25: 29, pm10: 61, o3: 54, no2: 31, pollen: { grass: 22, mugwort: 9, birch: 0, alder: 0, olive: 0, ragweed: 4 } },
   },
   rain: {
     scene: 'rain',
@@ -171,6 +189,7 @@ export const CONDITIONS: Record<ConditionKey, Condition> = {
     sky: ['#1F2A38', '#33465B', '#506479'], cardBg: 'rgba(8,14,24,0.3)',
     cloudColor: 'rgba(170,185,205,0.45)', cloudCount: 6, cloudOpacity: 0.9, dropCount: 70,
     sun: false, moon: false, stars: false, rain: true, snow: false, lightning: false,
+    air: { aqi: 42, pm25: 10, pm10: 21, o3: 38, no2: 14, pollen: { grass: 3, mugwort: 0, birch: 0, alder: 0, olive: 0, ragweed: 0 } },
   },
   storm: {
     scene: 'storm',
@@ -189,6 +208,7 @@ export const CONDITIONS: Record<ConditionKey, Condition> = {
     sky: ['#0E111B', '#20283A', '#383F57'], cardBg: 'rgba(6,8,16,0.32)',
     cloudColor: 'rgba(120,130,155,0.5)', cloudCount: 6, cloudOpacity: 0.95, dropCount: 90,
     sun: false, moon: false, stars: false, rain: true, snow: false, lightning: true,
+    air: { aqi: 58, pm25: 16, pm10: 34, o3: 44, no2: 19, pollen: { grass: 6, mugwort: 1, birch: 0, alder: 0, olive: 0, ragweed: 1 } },
   },
   snow: {
     scene: 'snow',
@@ -207,6 +227,7 @@ export const CONDITIONS: Record<ConditionKey, Condition> = {
     sky: ['#2F4A68', '#4E6C8E', '#7591B0'], cardBg: 'rgba(10,22,44,0.32)',
     cloudColor: 'rgba(225,232,242,0.5)', cloudCount: 4, cloudOpacity: 0.8, dropCount: 0,
     sun: false, moon: false, stars: false, rain: false, snow: true, lightning: false,
+    air: { aqi: 28, pm25: 6, pm10: 11, o3: 58, no2: 8, pollen: null },
   },
   night: {
     scene: 'night',
@@ -225,6 +246,7 @@ export const CONDITIONS: Record<ConditionKey, Condition> = {
     sky: ['#050817', '#10183A', '#262C5A'], cardBg: 'rgba(4,8,24,0.32)',
     cloudColor: 'rgba(140,150,190,0.3)', cloudCount: 1, cloudOpacity: 0.6, dropCount: 0,
     sun: false, moon: true, stars: true, rain: false, snow: false, lightning: false,
+    air: { aqi: 74, pm25: 23, pm10: 47, o3: 31, no2: 36, pollen: { grass: 58, mugwort: 14, birch: 0, alder: 0, olive: 0, ragweed: 21 } },
   },
 };
 

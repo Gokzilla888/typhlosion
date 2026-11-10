@@ -235,6 +235,60 @@
 }
 .wx-strike { position: absolute; inset: 0; background: #e6edff; opacity: 0; animation: wx-strike 0.9s linear forwards; }
 
+/* Air quality */
+.wx-air { padding: 16px 18px; }
+.wx-air-main { display: flex; align-items: center; gap: 6px; margin-top: 6px; }
+.wx-flower-btn {
+  flex: 0 0 auto; padding: 0; border: 0; border-radius: 20px; background: transparent;
+  line-height: 0; -webkit-tap-highlight-color: transparent;
+}
+.wx-flower-btn svg { overflow: visible; }
+.wx-air-read { min-width: 0; }
+.wx-air-aqi { font-size: 44px; font-weight: 300; line-height: 1; display: flex; align-items: baseline; gap: 8px; }
+.wx-air-aqi span { font-size: 12px; font-weight: 600; letter-spacing: 0.06em; color: rgba(255,255,255,0.8); }
+.wx-air-band { margin-top: 6px; font-size: 17px; font-weight: 500; line-height: 1.2; transition: color 0.6s ease; }
+.wx-air-advice { margin: 6px 0 0; font-size: 13px; line-height: 1.35; color: rgba(255,255,255,0.88); }
+.wx-aqi-bar {
+  position: relative; margin-top: 14px; height: 5px; border-radius: 3px;
+  background: linear-gradient(90deg, #4ADE80 0%, #4ADE80 12%, #FACC15 22%, #FB923C 40%, #F87171 56%, #C084FC 75%, #FB7185 100%);
+}
+.wx-aqi-ticks { position: relative; height: 16px; margin-top: 6px; font-size: 11px; color: rgba(255,255,255,0.8); }
+.wx-aqi-ticks span { position: absolute; top: 0; transform: translateX(-50%); }
+.wx-aqi-ticks span:first-child { transform: none; }
+.wx-aqi-ticks span:last-child { transform: translateX(-100%); }
+.wx-pollutants { margin: 14px 0 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.wx-pollutants div { padding: 8px 4px; border-radius: 12px; background: rgba(255,255,255,0.08); text-align: center; }
+.wx-pollutants dt { font-size: 11px; font-weight: 600; letter-spacing: 0.04em; color: rgba(255,255,255,0.8); }
+.wx-pollutants dd { margin: 2px 0 0; font-size: 17px; font-weight: 500; }
+.wx-air-unit { margin: 6px 0 0; font-size: 11px; text-align: right; color: rgba(255,255,255,0.75); }
+.wx-air-divider { height: 1px; margin: 12px 0; background: rgba(255,255,255,0.14); }
+.wx-air-note { margin: 8px 0 0; font-size: 13px; line-height: 1.4; color: rgba(255,255,255,0.88); }
+.wx-pollen-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; font-size: 15px; font-weight: 500; }
+.wx-pollen-overall { font-size: 13px; text-align: right; }
+.wx-pollen { list-style: none; margin: 10px 0 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.wx-pollen li { display: grid; grid-template-columns: 74px minmax(0, 1fr) 72px; align-items: center; gap: 10px; font-size: 14px; }
+.wx-pollen-meter { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3px; }
+.wx-pollen-meter span { height: 6px; border-radius: 3px; background: rgba(255,255,255,0.16); }
+.wx-pollen-level { text-align: right; color: rgba(255,255,255,0.9); }
+.wx-chip-dot { width: 9px; height: 9px; border-radius: 50%; box-shadow: 0 0 0 2px rgba(255,255,255,0.25); }
+
+/* Flower motion */
+.wx-flower-sway {
+  transform-box: view-box; transform-origin: 60px 150px;
+  animation: wx-flower-sway ease-in-out infinite;
+}
+.wx-flower-wiggle { transform-box: view-box; transform-origin: 60px 150px; animation: wx-flower-wiggle 0.7s cubic-bezier(.3,.7,.4,1); }
+.wx-petal { transition: opacity 0.8s ease, fill 0.8s ease; }
+.wx-petal-fall {
+  transform-box: fill-box; transform-origin: center;
+  animation: wx-petal-fall 4.5s ease-in infinite;
+}
+.wx-petal-fall--late { animation-delay: 2.2s; }
+.wx-sparkle { transform-box: fill-box; transform-origin: center; animation: wx-sparkle 2.4s ease-in-out infinite; }
+.wx-sparkle--b { animation-delay: 0.8s; }
+.wx-sparkle--c { animation-delay: 1.6s; }
+.wx-smog { animation: wx-smog 9s ease-in-out infinite alternate; }
+
 /* ---------- Top bar ---------- */
 .wx-topbar {
   position: absolute; top: 0; left: 0; right: 0;
@@ -385,6 +439,15 @@
 @keyframes wx-strike { 0% { opacity: 0; } 8% { opacity: .85; } 16% { opacity: .1; } 26% { opacity: .6; } 100% { opacity: 0; } }
 @keyframes wx-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
 @keyframes wx-sway { 0%, 100% { transform: rotate(-5deg); } 50% { transform: rotate(5deg); } }
+@keyframes wx-flower-sway { 0%, 100% { transform: rotate(calc(var(--sway) * -1)); } 50% { transform: rotate(var(--sway)); } }
+@keyframes wx-flower-wiggle { 0% { transform: rotate(0); } 20% { transform: rotate(-12deg); } 45% { transform: rotate(9deg); } 70% { transform: rotate(-5deg); } 100% { transform: rotate(0); } }
+@keyframes wx-petal-fall {
+  0% { opacity: 0; transform: translate(0, 0) rotate(0); }
+  10% { opacity: 1; }
+  100% { opacity: 0; transform: translate(26px, 90px) rotate(260deg); }
+}
+@keyframes wx-sparkle { 0%, 100% { opacity: 0.2; transform: scale(0.6); } 50% { opacity: 1; transform: scale(1.1); } }
+@keyframes wx-smog { from { transform: translateX(-10px); } to { transform: translateX(12px); } }
 @keyframes wx-grow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 
 @media (prefers-reduced-motion: reduce) {

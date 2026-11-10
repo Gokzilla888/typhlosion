@@ -1,4 +1,5 @@
 import {
+  type AirQuality,
   clamp01,
   CONDITIONS,
   type Condition,
@@ -99,6 +100,44 @@ export async function fetchForecast(place: Place, signal?: AbortSignal): Promise
   const res = await fetch(`https://api.open-meteo.com/v1/forecast?${params}`, { signal });
   if (!res.ok) throw new Error(`Open-Meteo returned ${res.status}`);
   return res.json();
+}
+
+const POLLEN_KEYS = ['alder', 'birch', 'grass', 'mugwort', 'olive', 'ragweed'] as const;
+
+interface AirResponse {
+  current: Record<string, number | null | string>;
+}
+
+/**
+ * Current US AQI, main pollutants and pollen from Open-Meteo's air quality API.
+ * Pollen is only modelled for Europe; elsewhere it comes back empty.
+ */
+export async function fetchAirQuality(place: Place, signal?: AbortSignal): Promise<AirQuality> {
+  const params = new URLSearchParams({
+    latitude: place.latitude.toFixed(4),
+    longitude: place.longitude.toFixed(4),
+    timezone: 'auto',
+    current: ['us_aqi', 'pm2_5', 'pm10', 'ozone', 'nitrogen_dioxide', ...POLLEN_KEYS.map((k) => `${k}_pollen`)].join(','),
+  });
+  const res = await fetch(`https://air-quality-api.open-meteo.com/v1/air-quality?${params}`, { signal });
+  if (!res.ok) throw new Error(`Air quality returned ${res.status}`);
+  const { current: c }: AirResponse = await res.json();
+  const num = (v: unknown) => (typeof v === 'number' ? v : null);
+  if (num(c.us_aqi) == null) throw new Error('No air quality data for this place');
+
+  const pollen: Partial<Record<(typeof POLLEN_KEYS)[number], number>> = {};
+  for (const k of POLLEN_KEYS) {
+    const v = num(c[`${k}_pollen`]);
+    if (v != null) pollen[k] = v;
+  }
+  return {
+    aqi: Math.round(num(c.us_aqi)!),
+    pm25: Math.round(num(c.pm2_5) ?? 0),
+    pm10: Math.round(num(c.pm10) ?? 0),
+    o3: Math.round(num(c.ozone) ?? 0),
+    no2: Math.round(num(c.nitrogen_dioxide) ?? 0),
+    pollen: Object.keys(pollen).length ? pollen : null,
+  };
 }
 
 interface GeocodingResult {
@@ -242,7 +281,7 @@ const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const round = Math.round;
 
 /** Turns an Open-Meteo forecast into the data the weather screen shows. */
-export function toCondition(data: ForecastResponse, place: Place, fetchedAt = new Date()): Condition {
+export function toCondition(data: ForecastResponse, place: Place, air?: AirQuality, fetchedAt = new Date()): Condition {
   const { current: cur, hourly, daily } = data;
   const isDay = cur.is_day === 1;
   const scene = sceneForCode(cur.weather_code, isDay);
@@ -343,6 +382,7 @@ export function toCondition(data: ForecastResponse, place: Place, fetchedAt = ne
     dayNames,
     dayDetails,
     intensity: intensityForCode(cur.weather_code),
+    air,
     updatedNote: `Updated ${fetchedLabel}`,
   };
 }

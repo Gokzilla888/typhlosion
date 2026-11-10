@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Condition } from './data';
 import { CityPicker } from './CityPicker';
-import { DEFAULT_PLACE, fetchForecast, getDevicePosition, placeFromCoords, toCondition, type Place } from './openMeteo';
+import { DEFAULT_PLACE, fetchAirQuality, fetchForecast, getDevicePosition, placeFromCoords, toCondition, type Place } from './openMeteo';
 import { WeatherScreen } from './WeatherScreen';
 
 const PLACE_KEY = 'wx-place';
@@ -85,10 +85,11 @@ export function LiveWeather({ fullScreen }: { fullScreen?: boolean }) {
       if (quiet) setRefreshing(true);
       else setStatus({ kind: 'loading' });
       try {
-        const data = await fetchForecast(p);
+        // Air quality is optional: the weather still shows if it fails.
+        const [data, air] = await Promise.all([fetchForecast(p), fetchAirQuality(p).catch(() => undefined)]);
         if (id !== requestId.current) return;
         hasWeather.current = true;
-        setStatus({ kind: 'ready', weather: toCondition(data, p) });
+        setStatus({ kind: 'ready', weather: toCondition(data, p, air) });
       } catch {
         if (id !== requestId.current) return;
         if (quiet) setToast('Could not refresh. Showing the last forecast.');

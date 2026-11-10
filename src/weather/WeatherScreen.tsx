@@ -3,6 +3,8 @@ import { clamp01, formatTemp, hourLabel, ICON_LABELS, sceneForIcon, toUnit, type
 import { UiIcon } from './Icon';
 import { Sky } from './Sky';
 import { DailyCard, DetailTiles, HourlyCard, SunCard } from './Cards';
+import { AirCard } from './AirCard';
+import { aqiBand } from './airScale';
 import { useCountUp } from './useCountUp';
 import './weather.css';
 
@@ -42,6 +44,7 @@ export function WeatherScreen({ weather: c, onCityClick, onRefresh, refreshing, 
   const [ripples, setRipples] = useState<Ripple[]>([]);
   const [strike, setStrike] = useState(0);
   const rootRef = useRef<HTMLDivElement>(null);
+  const scrollerRef = useRef<HTMLDivElement>(null);
   const rippleId = useRef(0);
 
   const setUnit = (u: Unit) => {
@@ -91,6 +94,12 @@ export function WeatherScreen({ weather: c, onCityClick, onRefresh, refreshing, 
     if (scene === 'storm') setStrike((n) => n + 1);
   };
 
+  const scrollToAir = () => {
+    const scroller = scrollerRef.current;
+    const card = scroller?.querySelector<HTMLElement>('.wx-air');
+    if (scroller && card) scroller.scrollTo({ top: card.offsetTop - 118, behavior: 'smooth' });
+  };
+
   // Scroll-driven motion: the hero shrinks and fades, the top bar frosts,
   // and a compact temperature slides into the bar.
   const heroP = clamp01(scrollY / 220);
@@ -113,7 +122,7 @@ export function WeatherScreen({ weather: c, onCityClick, onRefresh, refreshing, 
         ))}
       </div>
 
-      <div className="wx-scroller" onScroll={onScroll}>
+      <div ref={scrollerRef} className="wx-scroller" onScroll={onScroll}>
         <div
           className="wx-hero"
           style={{
@@ -143,10 +152,17 @@ export function WeatherScreen({ weather: c, onCityClick, onRefresh, refreshing, 
             </div>
           )}
           <div className="wx-hero-actions">
-            {previewing && (
+            {previewing ? (
               <button type="button" className="wx-chip wx-swap" onClick={() => setHour(0)}>
                 Back to now
               </button>
+            ) : (
+              c.air && (
+                <button type="button" className="wx-chip wx-swap" onClick={scrollToAir}>
+                  <span className="wx-chip-dot" style={{ background: aqiBand(c.air.aqi).color }} />
+                  AQI {c.air.aqi} · {aqiBand(c.air.aqi).label}
+                </button>
+              )
             )}
           </div>
         </div>
@@ -154,6 +170,7 @@ export function WeatherScreen({ weather: c, onCityClick, onRefresh, refreshing, 
         <div className="wx-stack">
           <HourlyCard c={c} unit={unit} selected={hour} onSelect={setHour} />
           <DailyCard c={c} unit={unit} />
+          <AirCard c={c} />
           <DetailTiles c={c} unit={unit} />
           <SunCard c={c} />
           <div className="wx-footer">
