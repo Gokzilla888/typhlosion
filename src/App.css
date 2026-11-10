@@ -1,0 +1,21 @@
+.app {
+  max-width: 2400px;
+  margin: 0 auto;
+  padding: 48px 16px 80px;
+}
+.app-title { margin: 0 0 32px; font-size: clamp(32px, 5vw, 56px); font-weight: 600; letter-spacing: -0.02em; }
+.app-subtitle { margin: 0 0 16px; font-size: 14px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.app-section { margin-bottom: 64px; }
+
+.app-picker { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 24px; }
+.app-picker button {
+  min-height: 44px; padding: 0 18px; border-radius: 22px;
+  border: 1px solid var(--line); background: transparent; color: inherit;
+  font: inherit; font-size: 15px; font-weight: 500; cursor: pointer;
+}
+.app-picker button.is-on { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+
+.app-phone, .app-gallery { overflow-x: auto; }
+.app-gallery { display: flex; gap: 80px; padding-bottom: 8px; }
+.app-frame { margin: 0; flex: 0 0 auto; }
+.app-frame figcaption { margin-bottom: 12px; font-size: 15px; font-weight: 500; color: var(--muted); }
