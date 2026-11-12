@@ -1,26 +1,15 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { Anemometer } from './components/Anemometer';
-import { Flower } from './components/Flower';
-import { Numerals } from './components/Numerals';
-import { Raindrop } from './components/Raindrop';
-import { Scene } from './components/Scene';
-import { PlaceSheet, SettingsSheet } from './components/Sheets';
-import { flowerHealth, selectionLabel, toTemp } from './lib/format';
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
+import { Icon } from './components/Icons';
+import { PlaceSheet } from './components/Sheets';
+import { Sky } from './components/Sky';
+import { describe, intensityFor, skyFor, toTemp } from './lib/format';
 import { DEFAULT_PLACE, fetchForecast, getDevicePosition, placeFromCoords } from './lib/openMeteo';
-import type { Forecast, Mode, Place, Units } from './lib/types';
+import type { Forecast, Place, TempUnit, Units } from './lib/types';
+import { SKY_THEMES } from './lib/skies';
 import { useCountUp } from './lib/useCountUp';
-import { DetailPage } from './pages/DetailPage';
-import { AIR_PAGE, AQI_PAGE, PRECIP_PAGE, select, TEMP_PAGE, type PageDef, type Selection } from './pages/metrics';
-import { NowPage } from './pages/NowPage';
+import { WeatherPage } from './pages/WeatherPage';
 import './styles.css';
 
-const PAGES: { key: PageDef['key']; name: string }[] = [
-  { key: 'now', name: 'Now' },
-  { key: 'temp', name: 'Temp' },
-  { key: 'air', name: 'Air' },
-  { key: 'precip', name: 'Precip' },
-  { key: 'aqi', name: 'AQI' },
-];
 const REFRESH_MS = 15 * 60 * 1000;
 
 function load<T>(key: string, fallback: T): T {
@@ -41,25 +30,59 @@ function save(key: string, value: unknown) {
 
 type Status = { kind: 'loading' } | { kind: 'ready'; forecast: Forecast } | { kind: 'error' };
 
-function TempArt({ selection: s, units }: { selection: Selection; units: Units }) {
-  const t = s.mode === 'day' ? s.hour.temp : s.day.hi;
-  const shown = Math.round(toTemp(useCountUp(t, 6), units.temp));
-  return <Numerals value={String(shown)} label={`${shown} degrees`} size={230} maxVh={27} />;
+interface ForecastViewProps {
+  forecast: Forecast;
+  units: Units;
+  onUnit: (u: TempUnit) => void;
+  onPlace: () => void;
+  onScroll: (y: number) => void;
+}
+
+/** The top bar and the scrolling forecast. */
+function ForecastView({ forecast: f, units, onUnit, onPlace, onScroll }: ForecastViewProps) {
+  const shown = Math.round(toTemp(useCountUp(f.now.temp, 8), units.temp));
+  const condition = describe(f.now.code, f.now.isDay);
+
+  return (
+    <>
+      <div className="nb-scroller" onScroll={(e) => onScroll(e.currentTarget.scrollTop)}>
+        <WeatherPage forecast={f} units={units} shownTemp={shown} />
+      </div>
+
+      <header className="nb-bar">
+        <div className="nb-bar-place">
+          <button type="button" className="nb-city" onClick={onPlace} aria-label={`${f.place.name}. Change city`}>
+            <Icon name="pin" size={18} />
+            <span>{f.place.name}</span>
+            <Icon name="chevronDown" size={16} />
+          </button>
+          {/* Takes over from the big temperature once it has scrolled away. */}
+          <span className="nb-compact" aria-hidden="true">
+            {shown}° · {condition}
+          </span>
+        </div>
+        <div className="nb-units" role="group" aria-label="Temperature unit">
+          {(['C', 'F'] as const).map((u) => (
+            <button key={u} type="button" aria-pressed={units.temp === u} aria-label={u === 'C' ? 'Show Celsius' : 'Show Fahrenheit'} onClick={() => onUnit(u)}>
+              °{u}
+            </button>
+          ))}
+        </div>
+      </header>
+    </>
+  );
 }
 
 export default function App() {
   const [place, setPlace] = useState<Place | null>(() => load<Place | null>('nb-place', null));
   const [recent, setRecent] = useState<Place[]>(() => load<Place[]>('nb-recent', []));
-  const [units, setUnits] = useState<Units>(() => load<Units>('nb-units', { temp: 'C', wind: 'kmh' }));
+  const [units, setUnits] = useState<Units>(() => ({ temp: load<Units>('nb-units', { temp: 'C' }).temp }));
   const [status, setStatus] = useState<Status>({ kind: 'loading' });
-  const [mode, setMode] = useState<Mode>('day');
-  const [index, setIndex] = useState(0);
-  const [page, setPage] = useState(0);
-  const [sheet, setSheet] = useState<'place' | 'settings' | null>(null);
+  const [sheetOpen, setSheetOpen] = useState(false);
   const [locating, setLocating] = useState(false);
   const [locateError, setLocateError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
-  const pager = useRef<HTMLDivElement>(null);
+  const phone = useRef<HTMLDivElement>(null);
   const request = useRef(0);
 
   const choose = useCallback((p: Place) => {
@@ -77,7 +100,7 @@ export default function App() {
     setLocateError(null);
     try {
       choose(await placeFromCoords(await getDevicePosition()));
-      setSheet(null);
+      setSheetOpen(false);
       return true;
     } catch (err) {
       setLocateError((err as Error).message);
@@ -116,7 +139,6 @@ export default function App() {
 
   useEffect(() => {
     if (!place) return;
-    setIndex(0);
     refresh(place, false);
     const timer = window.setInterval(() => refresh(place, true), REFRESH_MS);
     const onVisible = () => document.visibilityState === 'visible' && refresh(place, true);
@@ -133,169 +155,75 @@ export default function App() {
     return () => window.clearTimeout(t);
   }, [toast]);
 
-  const goTo = (i: number) => {
-    const el = pager.current;
-    if (el) el.scrollTo({ left: i * el.clientWidth, behavior: 'smooth' });
-  };
-  const onPagerScroll = () => {
-    const el = pager.current;
-    if (el) setPage(Math.round(el.scrollLeft / el.clientWidth));
-  };
-  const changeMode = (m: Mode) => {
-    setMode(m);
-    setIndex(0);
-  };
-  const changeUnits = (u: Units) => {
-    setUnits(u);
-    save('nb-units', u);
+  // Scroll position drives the hero, sun and top bar through CSS, without re-rendering.
+  const setScroll = useCallback((y: number) => phone.current?.style.setProperty('--y', y.toFixed(1)), []);
+  // A new forecast view starts at the top.
+  useEffect(() => setScroll(0), [status.kind, setScroll]);
+
+  const changeUnit = (temp: TempUnit) => {
+    setUnits({ temp });
+    save('nb-units', { temp });
   };
 
-  const sheets = (
-    <>
-      <PlaceSheet
-        open={sheet === 'place'}
-        current={place ?? DEFAULT_PLACE}
-        recent={recent}
-        locating={locating}
-        locateError={locateError}
-        onUseLocation={locate}
-        onSelect={(p) => {
-          choose(p);
-          setSheet(null);
-        }}
-        onClose={() => setSheet(null)}
-      />
-      <SettingsSheet
-        open={sheet === 'settings'}
-        units={units}
-        onUnits={changeUnits}
-        onLocation={() => setSheet('place')}
-        onRefresh={() => {
-          if (place) refresh(place, true);
-          setSheet(null);
-        }}
-        updated={status.kind === 'ready' ? `Updated ${status.forecast.fetchedAt.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}` : 'Not loaded yet'}
-        onClose={() => setSheet(null)}
-      />
-      {toast && (
-        <div className="nb-toast" role="status">
-          {toast}
-        </div>
-      )}
-    </>
-  );
-
-  if (status.kind !== 'ready') {
-    return (
-      <main className="nb-app">
-        <div className="nb-phone nb-state">
-          <h1 className="nb-sr">Weather</h1>
-          <Scene kind="cloud" wind={20} intensity={1} aqi={null} />
-          {status.kind === 'loading' ? (
-            <p className="nb-label" role="status">
-              {locating ? 'FINDING YOUR LOCATION…' : place ? `LOADING ${place.name.toUpperCase()}…` : 'LOADING…'}
-            </p>
-          ) : (
-            <>
-              <p className="nb-note" role="alert">
-                Could not load the weather. Check your connection and try again.
-              </p>
-              <button type="button" className="nb-pill-btn" onClick={() => place && refresh(place, false)}>
-                TRY AGAIN
-              </button>
-              <button type="button" className="nb-pill-btn nb-pill-btn--ghost" onClick={() => setSheet('place')}>
-                CHOOSE A CITY
-              </button>
-            </>
-          )}
-          {sheets}
-        </div>
-      </main>
-    );
-  }
-
-  const f = status.forecast;
-  const safeIndex = Math.min(index, mode === 'day' ? f.hours.length - 1 : f.days.length - 1);
-  const sel = select(f, mode, safeIndex);
-  const health = flowerHealth(sel.mode === 'day' ? sel.hour.aqi : sel.day.aqi);
-  const detail = (def: PageDef) => (
-    <DetailPage
-      page={def}
-      forecast={f}
-      selection={sel}
-      units={units}
-      onIndex={setIndex}
-      onMode={changeMode}
-      art={
-        def.key === 'temp' ? (
-          <TempArt selection={sel} units={units} />
-        ) : def.key === 'air' ? (
-          <Anemometer wind={sel.mode === 'day' ? sel.hour.wind : sel.day.windMax} direction={sel.mode === 'day' ? sel.hour.windDir : sel.day.windDir} />
-        ) : def.key === 'precip' ? (
-          <Raindrop chance={sel.mode === 'day' ? sel.hour.pop : sel.day.pop} amount={sel.mode === 'day' ? sel.hour.precip : sel.day.precip} />
-        ) : (
-          <Flower health={health} />
-        )
-      }
-    />
-  );
+  const now = status.kind === 'ready' ? status.forecast.now : null;
+  const sky = now ? skyFor(now.code, now.isDay) : 'cloudy';
 
   return (
     <main className="nb-app">
-      <div className="nb-phone">
-        <h1 className="nb-sr">Weather for {f.place.name}</h1>
-        <header className="nb-header">
-          <div className="nb-header-mid">
-            <span className="nb-label" aria-live="polite">
-              {selectionLabel(f.hours, f.days, mode, safeIndex)}
-            </span>
-            <button type="button" className="nb-city" onClick={() => setSheet('place')} aria-label={`${f.place.name}. Change location`}>
-              {f.place.name.toUpperCase()}
-            </button>
+      <div className="nb-phone" ref={phone} style={{ '--card': SKY_THEMES[sky].card } as CSSProperties}>
+        <h1 className="nb-sr">{status.kind === 'ready' ? `Weather for ${status.forecast.place.name}` : 'Weather'}</h1>
+        <Sky kind={sky} intensity={now ? intensityFor(now.code) : 1} />
+
+        {status.kind === 'ready' ? (
+          <ForecastView
+            // Replays the entrance and count-up for each city.
+            key={`${status.forecast.place.latitude},${status.forecast.place.longitude}`}
+            forecast={status.forecast}
+            units={units}
+            onUnit={changeUnit}
+            onPlace={() => setSheetOpen(true)}
+            onScroll={setScroll}
+          />
+        ) : (
+          <div className="nb-state">
+            {status.kind === 'loading' ? (
+              <p className="nb-state-text" role="status">
+                {locating ? 'Finding your location…' : place ? `Loading ${place.name}…` : 'Loading…'}
+              </p>
+            ) : (
+              <>
+                <p className="nb-state-text" role="alert">
+                  Could not load the weather. Check your connection and try again.
+                </p>
+                <button type="button" className="nb-pill-btn" onClick={() => place && refresh(place, false)}>
+                  Try again
+                </button>
+                <button type="button" className="nb-pill-btn nb-pill-btn--ghost" onClick={() => setSheetOpen(true)}>
+                  Choose a city
+                </button>
+              </>
+            )}
           </div>
-          <button type="button" className="nb-ring" aria-label="Settings" onClick={() => setSheet('settings')}>
-            <span />
-          </button>
-        </header>
-
-        <div className="nb-pager" ref={pager} onScroll={onPagerScroll}>
-          <section className="nb-page nb-page--now" aria-label="Now">
-            <NowPage
-              forecast={f}
-              selection={sel}
-              units={units}
-              onHour={(i) => {
-                setMode('day');
-                setIndex(i);
-              }}
-              onAlert={(key) => goTo(PAGES.findIndex((p) => p.key === key))}
-              onMenu={() => setSheet('settings')}
-            />
-          </section>
-          {[TEMP_PAGE, AIR_PAGE, PRECIP_PAGE, AQI_PAGE].map((def) => (
-            <section key={def.key} className="nb-page" aria-label={def.title}>
-              {detail(def)}
-            </section>
-          ))}
-        </div>
-
-        {page > 0 && (
-          <button type="button" className="nb-edge nb-edge--left" aria-label={`Previous page: ${PAGES[page - 1].name}`} onClick={() => goTo(page - 1)}>
-            <span>{PAGES[page - 1].name}</span>
-          </button>
         )}
-        {page < PAGES.length - 1 && (
-          <button type="button" className="nb-edge nb-edge--right" aria-label={`Next page: ${PAGES[page + 1].name}`} onClick={() => goTo(page + 1)}>
-            <span>{PAGES[page + 1].name}</span>
-          </button>
-        )}
-        <div className="nb-dots" aria-hidden="true">
-          {PAGES.map((p, i) => (
-            <span key={p.key} className={i === page ? 'is-on' : ''} />
-          ))}
-        </div>
 
-        {sheets}
+        <PlaceSheet
+          open={sheetOpen}
+          current={place ?? DEFAULT_PLACE}
+          recent={recent}
+          locating={locating}
+          locateError={locateError}
+          onUseLocation={locate}
+          onSelect={(p) => {
+            choose(p);
+            setSheetOpen(false);
+          }}
+          onClose={() => setSheetOpen(false)}
+        />
+        {toast && (
+          <div className="nb-toast" role="status">
+            {toast}
+          </div>
+        )}
       </div>
     </main>
   );

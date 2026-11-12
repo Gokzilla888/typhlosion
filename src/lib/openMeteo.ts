@@ -162,6 +162,8 @@ export function buildForecast(place: Place, wx: ForecastResponse, air: Series | 
   const base = all[start];
   const now: Hour = {
     ...base,
+    // The live reading's own time (to the quarter hour) places the sun on its arc.
+    time: c.time,
     code: num(c.weather_code, base.code),
     isDay: num(c.is_day, base.isDay ? 1 : 0) === 1,
     temp: num(c.temperature_2m, base.temp),

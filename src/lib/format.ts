@@ -1,4 +1,4 @@
-import type { Day, Hour, PollenKind, Pollen, TempUnit, Units, WindUnit } from './types';
+import type { PollenKind, Pollen, TempUnit, Units } from './types';
 
 // ---------- Weather codes (WMO) ----------
 
@@ -26,6 +26,17 @@ export function sceneFor(code: number, isDay = true): SceneKind {
   return isDay ? 'sun' : 'moon';
 }
 
+/** Which animated sky to show behind the forecast. */
+export type SkyKind = 'clear' | 'partly' | 'cloudy' | 'cloudyNight' | 'rain' | 'storm' | 'snow' | 'night';
+
+export function skyFor(code: number, isDay = true): SkyKind {
+  const scene = sceneFor(code, isDay);
+  if (scene === 'sun') return 'clear';
+  if (scene === 'moon') return 'night';
+  if (scene === 'cloud' || scene === 'fog') return isDay ? 'cloudy' : 'cloudyNight';
+  return scene;
+}
+
 /** Rain or snow strength 0–1 from the weather code. */
 export function intensityFor(code: number) {
   if ([51, 56, 61, 66, 71, 77, 80, 85].includes(code)) return 0.4;
@@ -36,31 +47,25 @@ export function intensityFor(code: number) {
 // ---------- Units ----------
 
 export const toTemp = (c: number, u: TempUnit) => (u === 'F' ? (c * 9) / 5 + 32 : c);
-export const toWind = (kmh: number, u: WindUnit) => (u === 'ms' ? kmh / 3.6 : u === 'mph' ? kmh / 1.609 : kmh);
-export const WIND_LABEL: Record<WindUnit, string> = { kmh: 'KM/H', ms: 'M/S', mph: 'MPH' };
 
 export const fmtTemp = (c: number, units: Units) => `${Math.round(toTemp(c, units.temp))}°${units.temp}`;
 export const fmtDeg = (c: number, units: Units) => `${Math.round(toTemp(c, units.temp))}°`;
-export const fmtWind = (kmh: number, units: Units) => `${Math.round(toWind(kmh, units.wind))} ${WIND_LABEL[units.wind]}`;
 
 const COMPASS = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
-export const compass = (deg: number) => COMPASS[Math.round((((deg % 360) + 360) % 360) / 45) % 8];
+const COMPASS_LONG = ['north', 'north-east', 'east', 'south-east', 'south', 'south-west', 'west', 'north-west'];
+const octant = (deg: number) => Math.round((((deg % 360) + 360) % 360) / 45) % 8;
+export const compass = (deg: number) => COMPASS[octant(deg)];
+export const compassLong = (deg: number) => COMPASS_LONG[octant(deg)];
 
 // ---------- Time ----------
 
 /** Open-Meteo local times have no offset; reading them as UTC keeps them in local time. */
 export const localDate = (iso: string) => new Date(`${iso}${iso.length === 10 ? 'T00:00' : ''}Z`);
 
-/** "1P", "12A" */
-export function hourShort(iso: string) {
+/** "1 PM" */
+export function hourLabel(iso: string) {
   const h = localDate(iso).getUTCHours();
-  return `${h % 12 === 0 ? 12 : h % 12}${h < 12 ? 'A' : 'P'}`;
-}
-
-/** "1PM" */
-export function hourLong(iso: string) {
-  const h = localDate(iso).getUTCHours();
-  return `${h % 12 === 0 ? 12 : h % 12}${h < 12 ? 'AM' : 'PM'}`;
+  return `${h % 12 === 0 ? 12 : h % 12} ${h < 12 ? 'AM' : 'PM'}`;
 }
 
 /** "6:42 AM" */
@@ -70,23 +75,14 @@ export function clock(iso: string) {
   return `${h % 12 === 0 ? 12 : h % 12}:${String(d.getUTCMinutes()).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}`;
 }
 
-const WEEKDAYS = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
-const MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 export const weekday = (date: string) => WEEKDAYS[localDate(date).getUTCDay()];
 
-/** Label above the city: "NOW", "TODAY AT 1PM", "TOMORROW AT 3AM", "WED NOV 12". */
-export function selectionLabel(hours: Hour[], days: Day[], mode: 'day' | 'week', index: number) {
-  if (mode === 'week') {
-    if (index === 0) return 'TODAY';
-    if (index === 1) return 'TOMORROW';
-    const d = localDate(days[index].date);
-    return `${WEEKDAYS[d.getUTCDay()]} ${MONTHS[d.getUTCMonth()]} ${d.getUTCDate()}`;
-  }
-  if (index === 0) return 'NOW';
-  const t = hours[index].time;
-  const today = hours[0].time.slice(0, 10);
-  return `${t.startsWith(today) ? 'TODAY' : 'TOMORROW'} AT ${hourLong(t)}`;
+/** Minutes since midnight of a local time. */
+export function minutesOf(iso: string) {
+  const d = localDate(iso);
+  return d.getUTCHours() * 60 + d.getUTCMinutes();
 }
 
 // ---------- Air quality and pollen ----------
@@ -107,9 +103,6 @@ export const AQI_BANDS: AqiBand[] = [
 ];
 
 export const aqiBand = (aqi: number) => AQI_BANDS.find((b) => aqi <= b.max)!;
-
-/** 1 = thriving, 0 = wilted. Clean air up to 40 keeps the flower perfect. */
-export const flowerHealth = (aqi: number | null) => (aqi == null ? 1 : Math.max(0, Math.min(1, 1 - (aqi - 40) / 260)));
 
 export const POLLEN_LABELS: Record<PollenKind, string> = {
   alder: 'Alder', birch: 'Birch', olive: 'Olive', grass: 'Grass', mugwort: 'Mugwort', ragweed: 'Ragweed',

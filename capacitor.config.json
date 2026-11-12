@@ -3,6 +3,6 @@
   "appName": "Typhlosion Weather",
   "webDir": "dist",
   "android": {
-    "backgroundColor": "#ffffff"
+    "backgroundColor": "#0b1a33"
   }
 }

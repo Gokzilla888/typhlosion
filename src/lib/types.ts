@@ -86,10 +86,6 @@ export interface Forecast {
 }
 
 export type TempUnit = 'C' | 'F';
-export type WindUnit = 'kmh' | 'ms' | 'mph';
 export interface Units {
   temp: TempUnit;
-  wind: WindUnit;
 }
-
-export type Mode = 'day' | 'week';

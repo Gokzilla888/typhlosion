@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { searchPlaces } from '../lib/openMeteo';
-import type { Place, TempUnit, Units, WindUnit } from '../lib/types';
+import type { Place } from '../lib/types';
 import { Icon } from './Icons';
 
 interface SheetProps {
@@ -99,11 +99,11 @@ export function PlaceSheet({ open, current, recent, locating, locateError, onUse
       <label className="nb-search">
         <Icon name="search" size={18} />
         <span className="nb-sr">Search for a city</span>
-        <input ref={input} type="search" placeholder="SEARCH CITY" autoComplete="off" value={query} onChange={(e) => setQuery(e.target.value)} />
+        <input ref={input} type="search" placeholder="Search city" autoComplete="off" value={query} onChange={(e) => setQuery(e.target.value)} />
       </label>
       <button type="button" className="nb-pill-btn" onClick={onUseLocation} disabled={locating}>
         <Icon name="locate" size={18} />
-        {locating ? 'FINDING YOU…' : 'USE MY LOCATION'}
+        {locating ? 'Finding you…' : 'Use my location'}
       </button>
       {locateError && (
         <p className="nb-note" role="alert">
@@ -111,7 +111,7 @@ export function PlaceSheet({ open, current, recent, locating, locateError, onUse
         </p>
       )}
       <div className="nb-sheet-list" aria-live="polite">
-        {search.status === 'loading' && <p className="nb-note">SEARCHING…</p>}
+        {search.status === 'loading' && <p className="nb-note">Searching…</p>}
         {search.status === 'error' && <p className="nb-note">City search is unavailable right now.</p>}
         {search.status === 'done' &&
           (search.results.length ? <ul>{search.results.map((p) => item(p, 'pin'))}</ul> : <p className="nb-note">No cities match “{query.trim()}”.</p>)}
@@ -122,51 +122,6 @@ export function PlaceSheet({ open, current, recent, locating, locateError, onUse
           </>
         )}
       </div>
-    </Sheet>
-  );
-}
-
-interface SettingsSheetProps {
-  open: boolean;
-  units: Units;
-  onUnits: (u: Units) => void;
-  onLocation: () => void;
-  onRefresh: () => void;
-  updated: string;
-  onClose: () => void;
-}
-
-function Segmented<T extends string>({ label, value, options, onChange }: { label: string; value: T; options: [T, string][]; onChange: (v: T) => void }) {
-  return (
-    <div className="nb-setting">
-      <span className="nb-label">{label}</span>
-      <div className="nb-seg" role="group" aria-label={label}>
-        {options.map(([v, text]) => (
-          <button key={v} type="button" aria-pressed={v === value} className={v === value ? 'is-on' : ''} onClick={() => onChange(v)}>
-            {text}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-export function SettingsSheet({ open, units, onUnits, onLocation, onRefresh, updated, onClose }: SettingsSheetProps) {
-  return (
-    <Sheet open={open} title="Settings" onClose={onClose}>
-      <Segmented<TempUnit> label="TEMPERATURE" value={units.temp} options={[['C', '°C'], ['F', '°F']]} onChange={(temp) => onUnits({ ...units, temp })} />
-      <Segmented<WindUnit> label="WIND" value={units.wind} options={[['kmh', 'KM/H'], ['ms', 'M/S'], ['mph', 'MPH']]} onChange={(wind) => onUnits({ ...units, wind })} />
-      <button type="button" className="nb-pill-btn" onClick={onLocation}>
-        <Icon name="pin" size={18} />
-        CHANGE LOCATION
-      </button>
-      <button type="button" className="nb-pill-btn nb-pill-btn--ghost" onClick={onRefresh}>
-        <Icon name="refresh" size={18} />
-        REFRESH
-      </button>
-      <p className="nb-note">
-        {updated}. Weather and air quality by <a href="https://open-meteo.com">Open-Meteo.com</a>.
-      </p>
     </Sheet>
   );
 }

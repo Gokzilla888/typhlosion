@@ -1,20 +1,19 @@
 # Typhlosion Weather
 
-A monochrome, swipeable weather app built with React, TypeScript and Vite, packaged for Android with Capacitor. The design is inspired by the layout and type style of Not Boring Weather, with original artwork.
+A weather app with an animated sky, built with React, TypeScript and Vite, packaged for Android with Capacitor.
 
-## Pages
+## The screen
 
-Swipe left and right, or tap the tabs on the screen edges.
+One scrolling page over a sky that matches the weather: a glowing sun, a moon with twinkling stars, drifting clouds, rain, snow and lightning.
 
-- **Now**: a glossy illustration of the current weather (clouds pick up red pollution specks when the air is bad), giant 3D temperature numbers, the condition, alert pills (air quality, storms, rain, wind, UV) and a 24-hour timeline you can scrub.
-- **Temp**: temperature, high, low, feels like, humidity and dew point.
-- **Air**: a spinning anemometer (speed follows the wind, the arrow shows its direction), wind speed and gusts, direction, visibility, pressure, AQI and pollen.
-- **Precip**: a drop that fills with the chance of rain, plus amount, cloud cover, humidity, UV, sunrise and sunset.
-- **AQI**: a flower that wilts as pollution rises, US AQI, PM2.5, PM10, ozone, NO₂ and pollen.
+- **Top bar**: the city (tap it to search or use GPS) and a °C/°F switch. As you scroll, the big temperature shrinks away and a compact reading appears in the bar.
+- **Now**: the temperature, condition, today's high and low, and what it feels like.
+- **Hourly**: a short summary of the next 12 hours over a 24-hour strip you can swipe.
+- **7-day forecast**: each day's low–high range on a shared scale, with a dot for the current temperature.
+- **Tiles**: feels like, humidity and dew point, wind (a dial pointing the way it blows), UV index, visibility and pressure.
+- **Sunrise & sunset**: the sun's position along its arc.
 
-Each detail page has a data table (tap a row to chart it), a chart you can drag across, a timeline scrubber and a Day/Week switch.
-
-Data comes from [Open-Meteo](https://open-meteo.com) (weather, air quality, pollen and city search; free, no API key). Pollen is only available for Europe. GPS positions are named with BigDataCloud's free reverse-geocoding endpoint. Location comes from GPS on first launch, or tap the city name to search. Units (°C/°F, km/h, m/s, mph) are in settings (the ring button).
+Data comes from [Open-Meteo](https://open-meteo.com) (weather and city search; free, no API key). GPS positions are named with BigDataCloud's free reverse-geocoding endpoint. Location comes from GPS on first launch.
 
 ## Android APK
 
@@ -44,10 +43,12 @@ The web version is published to GitHub Pages on every push: https://gokzilla888.
 
 ## Code
 
-- `src/lib/openMeteo.ts`: weather, air quality and city search requests, GPS, and shaping the data
-- `src/lib/format.ts`: units, labels, weather codes, AQI and pollen scales
-- `src/pages/metrics.ts`: the rows and charts on each detail page
-- `src/pages/NowPage.tsx`, `src/pages/DetailPage.tsx`: page layouts
-- `src/components/`: numerals, illustrations (scene, anemometer, raindrop, flower), chart, controls and sheets
-- `src/App.tsx`: loading, location, settings and the page swiper
+- `src/lib/openMeteo.ts`: weather and city search requests, GPS, and shaping the data
+- `src/lib/format.ts`: units, labels and weather codes
+- `src/lib/insights.ts`: the summary sentence and the notes on each tile
+- `src/lib/skies.ts`: colours and animated layers for each kind of sky
+- `src/components/Sky.tsx`: the animated sky
+- `src/components/Cards.tsx`: hourly and daily forecasts, tiles and the sun arc
+- `src/pages/WeatherPage.tsx`: the page layout
+- `src/App.tsx`: loading, location, units and the top bar
 - `android/`: the Capacitor Android project
